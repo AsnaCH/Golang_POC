@@ -8,7 +8,6 @@ import (
 
     "github.com/gin-gonic/gin"
 )
-// Create Multiple Employees
 func CreateEmployee(c *gin.Context) {
     var employees []models.Employee // Ensure this is a slice
 
@@ -18,15 +17,59 @@ func CreateEmployee(c *gin.Context) {
         return
     }
 
-    // Bulk insert employees
-    result := config.DB.Create(&employees)
-    if result.Error != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
-        return
+    // Variables to store the results
+    var existingEmails []string
+    var newEmployees []models.Employee
+
+    // Check for existing emails in the DB
+    for _, emp := range employees {
+        var existingEmployee models.Employee
+        // Check if the employee exists by email
+        if err := config.DB.Where("email = ?", emp.Email).First(&existingEmployee).Error; err == nil {
+            // If employee exists, add to existingEmails slice
+            existingEmails = append(existingEmails, emp.Email)
+        } else {
+            // If employee doesn't exist, add to newEmployees slice
+            newEmployees = append(newEmployees, emp)
+        }
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "Employees added successfully", "employees": employees})
+    // Prepare response message
+    var responseMessages []gin.H
+
+    // If any employees already exist, add their emails to the response
+    if len(existingEmails) > 0 {
+        for _, email := range existingEmails {
+            responseMessages = append(responseMessages, gin.H{
+                
+                "message": "Employee with " + email + " already exists",
+            })
+        }
+    }
+
+    // Bulk insert new employees
+    if len(newEmployees) > 0 {
+        result := config.DB.Create(&newEmployees)
+        if result.Error != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+            return
+        }
+        for _, emp := range newEmployees {
+            responseMessages = append(responseMessages, gin.H{
+                "email":   emp.Email,
+                "message": "Employee with " + emp.Email + " has been created successfully",
+            })
+        }
+    }
+
+    // Return final response with messages about both existing and new employees
+    c.JSON(http.StatusOK, gin.H{
+        "messages": responseMessages,
+    })
 }
+
+
+   
 
 
  
