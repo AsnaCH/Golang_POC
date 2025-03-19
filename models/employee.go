@@ -13,5 +13,6 @@ type Employee struct{
 	Position string `json:"position"`
 	Age int `json:"age"`
 	Salary float64 `json:"salary"`
+	Phoneno string `json:"phoneno"`
 }
 
